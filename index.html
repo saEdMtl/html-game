@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>بازی کاشت تریاک</title>
+<style>
+:root{--panel:#3a2d21;--gold:#f0bf55;--red:#e0483a;--ok:#8fd16a;--txt:#f6e9d2;--mut:#d2c3a8}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;margin:0;overflow:hidden;overscroll-behavior:none}
+body{background:#8fb7dd;color:var(--txt);font-family:Vazirmatn,Tahoma,"Segoe UI",sans-serif;touch-action:manipulation}
+#gl{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none;cursor:grab}
+#app{position:fixed;inset:0;z-index:1;pointer-events:none;max-width:720px;margin:0 auto;padding:max(8px,env(safe-area-inset-top)) 10px max(8px,env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:7px}
+#app>*{pointer-events:auto}
+#app>.sp{flex:1;pointer-events:none}
+h1{margin:0;font-size:clamp(1rem,4vw,1.3rem);text-align:center;color:#fff;text-shadow:0 2px 6px #000a;pointer-events:none}
+.bar{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.stat{background:#2b2016d9;backdrop-filter:blur(4px);border:1px solid #6a5238;border-radius:10px;padding:5px 8px;min-width:0}
+.stat small{color:var(--mut);display:block;font-size:clamp(.6rem,2.4vw,.72rem);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.stat b{font-size:clamp(.85rem,3.6vw,1.1rem);white-space:nowrap;display:inline-block}
+#money b{color:var(--gold)}
+#money.bump b{animation:bump .5s}
+#stock.full b{color:var(--red)}
+#price.up b{color:var(--ok)}#price.down b{color:var(--red)}
+#price.flash{animation:flash .7s}
+.row{display:flex;gap:6px}
+button{font:inherit;font-size:clamp(.72rem,3vw,.95rem);background:linear-gradient(180deg,#f7cd6c,#e0a63a);color:#2b2118;border:0;border-radius:10px;padding:10px 6px;font-weight:700;cursor:pointer;flex:1;box-shadow:0 3px 0 #9a6f1d;transition:transform .1s,box-shadow .1s}
+button:active{transform:translateY(3px);box-shadow:0 0 0 #9a6f1d}
+button:disabled{opacity:.4;cursor:not-allowed}
+button.alt{background:linear-gradient(180deg,#5a4631,#46372a);color:var(--txt);box-shadow:0 3px 0 #2a1f15}
+:focus-visible{outline:3px solid #fff;outline-offset:2px}
+#trip{background:#2b2016d9;backdrop-filter:blur(4px);border-radius:10px;padding:6px 10px;border:1px solid #6a5238}
+#tripText{font-size:clamp(.7rem,3vw,.85rem);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#pgw{height:4px;background:#0006;border-radius:2px;margin-top:5px;overflow:hidden}
+#pg{height:100%;width:0;background:linear-gradient(90deg,#8fd16a,#f0bf55)}
+#log{height:3.6em;overflow:hidden;font-size:clamp(.68rem,2.8vw,.8rem);color:var(--mut);line-height:1.3;text-shadow:0 1px 3px #000}
+#log div:first-child{color:#fff}
+#log div{animation:slide .3s}
+.fl{position:fixed;z-index:9;pointer-events:none;font-weight:800;font-size:1.1rem;transform:translateX(-50%);text-shadow:0 2px 4px #000;animation:rise 1s ease-out forwards}
+.fl.g{color:var(--ok)}.fl.r{color:#ff8a7a}
+.coin{position:fixed;z-index:9;pointer-events:none;font-size:1.3rem;animation:burst 1s ease-out forwards}
+#toast{position:fixed;left:50%;top:22%;transform:translateX(-50%) scale(.6);z-index:10;background:#000c;color:#fff;border:2px solid var(--gold);padding:10px 18px;border-radius:14px;font-weight:700;opacity:0;pointer-events:none;text-align:center;max-width:90vw}
+#toast.show{animation:toast 2.4s forwards}
+#toast.bad{border-color:var(--red)}
+#flash{position:fixed;inset:0;background:radial-gradient(circle,transparent 40%,#f00 130%);opacity:0;pointer-events:none;z-index:8}
+#flash.on{animation:fl .7s}
+.shake{animation:shake .5s}
+button small{display:block;font-size:.68em;font-weight:600;opacity:.85;margin-top:1px}
+#lock{margin-top:5px;font-size:clamp(.7rem,3vw,.85rem);color:#ffd54a;font-weight:700}
+#raid{position:fixed;inset:0;z-index:15;background:#000b;display:flex;align-items:center;justify-content:center;padding:16px}
+#raid[hidden]{display:none}
+#raid .card{background:#2b2016;border:2px solid #e0483a;border-radius:16px;padding:16px;width:min(380px,100%);display:flex;flex-direction:column;gap:8px;text-align:center;animation:toast2 .4s}
+#raid h2{margin:0;font-size:1.3rem;animation:sir .6s steps(2) infinite}
+#raid p{margin:0;font-size:.9rem;line-height:1.7;color:var(--mut)}
+#rbar{height:5px;background:#0008;border-radius:3px;overflow:hidden}#rbar div{height:100%;width:100%;background:var(--red)}
+#raid button{flex:none;padding:12px 8px}
+@keyframes sir{0%{color:#ff5a4a}100%{color:#5a8aff}}
+@keyframes toast2{from{transform:scale(.7);opacity:0}}
+#err{position:fixed;inset:0;z-index:20;display:none;align-items:center;justify-content:center;background:#2b2016;color:#fff;text-align:center;padding:20px;line-height:2}
+@keyframes bump{40%{transform:scale(1.35);color:#fff}}
+@keyframes flash{30%{background:#6b5328}}
+@keyframes slide{from{opacity:0;transform:translateY(-6px)}}
+@keyframes rise{from{opacity:1}to{opacity:0;transform:translate(-50%,-60px) scale(1.3)}}
+@keyframes burst{to{opacity:0;transform:translate(var(--dx),var(--dy)) rotate(360deg) scale(.5)}}
+@keyframes toast{12%{opacity:1;transform:translateX(-50%) scale(1.08)}20%{transform:translateX(-50%) scale(1)}80%{opacity:1}100%{opacity:0}}
+@keyframes fl{50%{opacity:.7}}
+@keyframes shake{20%{transform:translateX(-8px)}40%{transform:translateX(8px)}60%{transform:translateX(-5px)}80%{transform:translateX(5px)}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<canvas id="gl"></canvas><div id="flash"></div><div id="toast"></div>
+<div id="raid" hidden><div class="card"><h2>🚔 پلیس آمد!</h2><p id="raidTxt"></p><div id="rbar"><div></div></div>
+<button id="b1"></button><button id="b2"></button><button id="b3" class="alt">رشوه نمی‌دهم</button>
+<p>رشوه بیشتر شانس قبول شدن را بالاتر می‌برد. اگر قبول نکند، پولت را نمی‌گیرد.</p></div></div>
+<div id="err">برای نمایش سه‌بعدی، کتابخانه three.js باید بارگذاری شود.<br>به اینترنت وصل شو و صفحه را دوباره باز کن.</div>
+<div id="app">
+  <h1>🌺 بازی کاشت تریاک</h1>
+  <div class="bar">
+    <div class="stat" id="money"><small>پول</small><b>0</b></div>
+    <div class="stat" id="stock"><small>انبار (کیلو)</small><b>0</b></div>
+    <div class="stat" id="price"><small>قیمت هر کیلو</small><b>0</b></div>
+    <div class="stat" id="land"><small>زمین‌ها</small><b>0</b></div>
+  </div>
+  <div class="sp"></div>
+  <div class="row">
+    <button id="plantAll">🌱 کاشت<small>بذر ۲۰ برای هر زمین</small></button>
+    <button id="harvestAll" class="alt">🧺 برداشت<small>همه آماده‌ها</small></button>
+    <button id="upg" class="alt">📦 انبار<small id="upgc"></small></button>
+    <button id="sell">🛒 بفروش<small>ببر بازار</small></button>
+  </div>
+  <div id="trip"><div id="tripText"></div><div id="pgw"><div id="pg"></div></div><div id="lock" hidden></div></div>
+  <div id="log"></div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function(){
+const $=id=>document.getElementById(id);
+if(typeof THREE==="undefined"){$("err").style.display="flex";return}
+const T=THREE;
+const N=25, GROW=12000, YIELD=5, SEED=20, TRIP=9000, BOOST=900, MAXLV=6, KEY="poppy-farm-v1";
+const fmt=n=>Math.round(n).toLocaleString("fa-IR");
+const rnd=(a,b)=>a+Math.random()*(b-a);
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+let S={money:150,stock:0,owned:3,price:45,prev:45,plots:Array(N).fill(0),trip:null};
+try{const d=JSON.parse(localStorage.getItem(KEY));if(d&&d.plots)S=d}catch(e){}
+S.capLv=S.capLv||0;S.lockUntil=S.lockUntil||0;S.freePlot=S.freePlot||0;
+const cap=()=>70+30*S.capLv,upCost=()=>Math.round(300*Math.pow(1.7,S.capLv));
+const isLocked=i=>S.lockUntil>Date.now()&&i!==S.freePlot;
+const landCost=()=>Math.round(250*Math.pow(1.45,S.owned-3));
+
+/* ---------- صحنه ---------- */
+const cv=$("gl");
+const R=new T.WebGLRenderer({canvas:cv,antialias:true});
+R.shadowMap.enabled=true;R.shadowMap.type=T.PCFSoftShadowMap;
+R.outputEncoding=T.sRGBEncoding;R.toneMapping=T.ACESFilmicToneMapping;R.toneMappingExposure=1.05;
+const scene=new T.Scene();
+scene.fog=new T.Fog(0xd5e3ee,32,85);
+const cam=new T.PerspectiveCamera(45,1,.1,200);
+function tex(w,h,fn,rep){const c=document.createElement("canvas");c.width=w;c.height=h;fn(c.getContext("2d"),w,h);const t=new T.CanvasTexture(c);t.encoding=T.sRGBEncoding;if(rep){t.wrapS=t.wrapT=T.RepeatWrapping;t.repeat.set(rep,rep)}t.anisotropy=4;return t}
+function noise(base,cols,n,len){return (g,w,h)=>{g.fillStyle=base;g.fillRect(0,0,w,h);for(let i=0;i<n;i++){g.strokeStyle=cols[i%cols.length];g.lineWidth=rnd(1,2.5);const x=rnd(0,w),y=rnd(0,h);g.beginPath();g.moveTo(x,y);g.lineTo(x+rnd(-len,len),y+rnd(-len,len));g.stroke()}}}
+scene.background=tex(2,256,(g,w,h)=>{const gr=g.createLinearGradient(0,0,0,h);gr.addColorStop(0,"#6fa6e0");gr.addColorStop(.6,"#bcd8f0");gr.addColorStop(1,"#f4e6c8");g.fillStyle=gr;g.fillRect(0,0,w,h)});
+const grassT=tex(512,512,noise("#4d7a30",["#5f8f3a","#3f6b28","#6b9a42","#557f33"],5000,7),28);
+const soilT=tex(256,256,noise("#4a3022",["#5c3d2a","#38241a","#6a4a33","#2f1e15"],2500,3),1);
+const dryT=tex(256,256,noise("#6f6a3d",["#7d7745","#5e5a34","#847e4c","#4f5a30"],2500,5),1);
+const roadT=tex(256,256,noise("#9c8662",["#a8936d","#8a7551","#b09b76"],1500,3),6);
+const tapeT=tex(128,16,(g,w,h)=>{g.fillStyle="#f2c200";g.fillRect(0,0,w,h);g.fillStyle="#111";for(let i=-1;i<9;i++){g.beginPath();g.moveTo(i*16,h);g.lineTo(i*16+8,h);g.lineTo(i*16+16,0);g.lineTo(i*16+8,0);g.fill()}});
+const stripeT=tex(128,32,(g,w,h)=>{for(let i=0;i<8;i++){g.fillStyle=i%2?"#f3ead8":"#c43a2e";g.fillRect(i*16,0,16,h)}},0);
+
+scene.add(new T.HemisphereLight(0xbfd8ff,0x5a4630,.75));
+const sun=new T.DirectionalLight(0xfff0d2,1.7);sun.position.set(9,15,7);sun.castShadow=true;
+sun.shadow.mapSize.set(innerWidth>900?4096:2048,innerWidth>900?4096:2048);sun.shadow.bias=-.0004;
+Object.assign(sun.shadow.camera,{left:-16,right:16,top:16,bottom:-16,near:1,far:60});
+scene.add(sun);
+const fill=new T.DirectionalLight(0x9ab8ff,.35);fill.position.set(-8,6,-6);scene.add(fill);
+
+const ground=new T.Mesh(new T.PlaneGeometry(220,220),new T.MeshStandardMaterial({map:grassT,roughness:1}));
+ground.rotation.x=-Math.PI/2;ground.receiveShadow=true;scene.add(ground);
+const road=new T.Mesh(new T.PlaneGeometry(60,2.4),new T.MeshStandardMaterial({map:roadT,roughness:1}));
+road.rotation.x=-Math.PI/2;road.position.set(0,.02,7.6);road.receiveShadow=true;scene.add(road);
+
+function tree(x,z,s){const g=new T.Group(),m=new T.MeshStandardMaterial({color:0x2f6b2c,roughness:.9});
+  const tr=new T.Mesh(new T.CylinderGeometry(.18*s,.26*s,1.6*s,7),new T.MeshStandardMaterial({color:0x5a3e28,roughness:1}));tr.position.y=.8*s;
+  const a=new T.Mesh(new T.ConeGeometry(1.2*s,2.2*s,8),m);a.position.y=2.4*s;
+  const b=new T.Mesh(new T.ConeGeometry(.9*s,1.8*s,8),m);b.position.y=3.5*s;
+  [tr,a,b].forEach(o=>{o.castShadow=true;g.add(o)});g.position.set(x,0,z);g.rotation.y=rnd(0,6);scene.add(g)}
+for(let i=0;i<9;i++)tree(-15+i*3.8+rnd(-1,1),-11-rnd(0,3),rnd(.9,1.5));
+for(let i=0;i<4;i++){tree(-12-rnd(0,2),-6+i*4,rnd(.9,1.4));tree(12+rnd(0,2),-6+i*4,rnd(.9,1.4))}
+
+/* چمن و حصار */
+(function(){
+ const d=new T.Object3D(),c=new T.Color();
+ const ok=(x,z)=>!(Math.abs(x)<6.9&&z>-6.9&&z<6.4)&&!(z>6.1&&z<9.2);
+ const gm=new T.MeshStandardMaterial({color:0xffffff,roughness:1}),gg=new T.ConeGeometry(.045,.55,4);gg.translate(0,.27,0);
+ const M=3500,gi=new T.InstancedMesh(gg,gm,M);let k=0;
+ while(k<M){const x=rnd(-26,26),z=rnd(-16,18);if(!ok(x,z))continue;
+  d.position.set(x,0,z);d.rotation.set(rnd(-.25,.25),rnd(0,6),rnd(-.25,.25));d.scale.set(rnd(.7,1.4),rnd(.6,1.6),rnd(.7,1.4));d.updateMatrix();gi.setMatrixAt(k,d.matrix);c.setHSL(rnd(.22,.32),rnd(.45,.65),rnd(.22,.4));gi.setColorAt(k,c);k++}
+ gi.receiveShadow=true;scene.add(gi);
+ const F=300,fi=new T.InstancedMesh(new T.SphereGeometry(.06,8,6),new T.MeshStandardMaterial({color:0xffffff,roughness:.6}),F),fc=[0xffffff,0xffe14a,0xf4a6d0,0xb48cf0];k=0;
+ while(k<F){const x=rnd(-26,26),z=rnd(-16,18);if(!ok(x,z))continue;
+  d.position.set(x,.35,z);d.rotation.set(0,0,0);d.scale.setScalar(rnd(.8,1.3));d.updateMatrix();fi.setMatrixAt(k,d.matrix);c.setHex(fc[k%4]);fi.setColorAt(k,c);k++}
+ scene.add(fi);
+ const wm=new T.MeshStandardMaterial({color:0x8a6440,roughness:1}),pg=new T.BoxGeometry(.14,1,.14);pg.translate(0,.5,0);
+ const pi=new T.InstancedMesh(pg,wm,40);let n=0;
+ const addP=(x,z)=>{d.position.set(x,0,z);d.rotation.set(0,0,0);d.scale.set(1,rnd(.9,1.1),1);d.updateMatrix();pi.setMatrixAt(n++,d.matrix)};
+ for(let i=-4;i<=4;i++)addP(i*1.6,-6.6);
+ for(let i=1;i<=7;i++){const z=-6.6+i*1.65;addP(-6.6,z);addP(6.6,z)}
+ pi.count=n;pi.castShadow=true;scene.add(pi);
+ const rail=(w,dd,x,y,z)=>{const r=new T.Mesh(new T.BoxGeometry(w,.07,dd),wm);r.position.set(x,y,z);r.castShadow=true;scene.add(r)};
+ [.5,.85].forEach(y=>{rail(13.4,.06,0,y,-6.6);rail(.06,11.6,-6.6,y,-.8);rail(.06,11.6,6.6,y,-.8)});
+})();
+
+/* بازار */
+(function(){const g=new T.Group(),wood=new T.MeshStandardMaterial({color:0x7a5532,roughness:.9});
+  const cn=new T.Mesh(new T.BoxGeometry(2.6,1,1.1),wood);cn.position.y=.5;
+  const ca=new T.Mesh(new T.BoxGeometry(3.2,.12,2),new T.MeshStandardMaterial({map:stripeT,roughness:.8}));ca.position.set(0,2.2,-.2);ca.rotation.x=.2;
+  [[-1.4,.5],[1.4,.5]].forEach(p=>{const po=new T.Mesh(new T.CylinderGeometry(.06,.06,2.2,6),wood);po.position.set(p[0],1.1,p[1]-.7);po.castShadow=true;g.add(po)});
+  for(let i=0;i<3;i++){const c=new T.Mesh(new T.BoxGeometry(.6,.5,.6),wood);c.position.set(-2.2+i*.7,.25,.9);c.castShadow=true;g.add(c)}
+  [cn,ca].forEach(o=>{o.castShadow=true;o.receiveShadow=true;g.add(o)});
+  g.position.set(-8.6,0,10);scene.add(g)})();
+
+/* انبار */
+const barn=new T.Group(),barnCrates=[];let barnLv=-1;
+(function(){const wall=new T.MeshStandardMaterial({color:0x8c2f26,roughness:.9}),trim=new T.MeshStandardMaterial({color:0xefe6d4,roughness:.8}),roofM=new T.MeshStandardMaterial({color:0x4a4f58,roughness:.7,metalness:.3}),wd=new T.MeshStandardMaterial({color:0x6a4a2e,roughness:1});
+ const add=(g,m,x,y,z,rx)=>{const o=new T.Mesh(g,m);o.position.set(x,y,z);if(rx)o.rotation.x=rx;o.castShadow=true;o.receiveShadow=true;barn.add(o);return o};
+ add(new T.BoxGeometry(3.2,1.7,2.6),wall,0,.85,0);add(new T.BoxGeometry(1.1,1.4,.06),trim,0,.7,1.31);add(new T.BoxGeometry(.9,1.25,.06),wd,0,.63,1.34);
+ add(new T.BoxGeometry(3.5,.1,1.7),roofM,0,2.05,.72,.55);add(new T.BoxGeometry(3.5,.1,1.7),roofM,0,2.05,-.72,-.55);
+ const sh=new T.Shape();sh.moveTo(-1.3,0);sh.lineTo(1.3,0);sh.lineTo(0,.85);sh.lineTo(-1.3,0);
+ [-1.6,1.6].forEach(x=>{const o=add(new T.ExtrudeGeometry(sh,{depth:.05,bevelEnabled:false}),wall,x,1.7,0);o.rotation.y=Math.PI/2});
+ for(let k=0;k<6;k++){const c=add(new T.BoxGeometry(.5,.5,.5),wd,2.1+(k%3)*.55,.25,.3+(k>2?.6:0));c.visible=false;barnCrates.push(c)}
+ barn.position.set(-8,0,-9.8);barn.rotation.y=.25;scene.add(barn)})();
+
+/* ابرها */
+const clouds=[];
+const cloudT=tex(128,128,(g,w,h)=>{const r=g.createRadialGradient(64,64,4,64,64,62);r.addColorStop(0,"rgba(255,255,255,.9)");r.addColorStop(1,"rgba(255,255,255,0)");g.fillStyle=r;g.fillRect(0,0,w,h)});
+for(let i=0;i<7;i++){const s=new T.Sprite(new T.SpriteMaterial({map:cloudT,transparent:true,opacity:.8,depthWrite:false,fog:false}));s.scale.set(rnd(10,18),rnd(4,7),1);s.position.set(rnd(-40,40),rnd(14,22),rnd(-40,-18));scene.add(s);clouds.push(s)}
+
+/* ---------- زمین‌ها و بوته‌ها ---------- */
+const soilM=new T.MeshStandardMaterial({map:soilT,bumpMap:soilT,bumpScale:.9,roughness:1}),dryM=new T.MeshStandardMaterial({map:dryT,bumpMap:dryT,bumpScale:.6,roughness:1});
+const ridgeM=new T.MeshStandardMaterial({color:0x3b261a,roughness:1,map:soilT});
+const stemM=new T.MeshStandardMaterial({color:0x5b9a58,roughness:.7}),leafM=new T.MeshStandardMaterial({color:0x6aa86a,roughness:.7,side:T.DoubleSide});
+const petM=new T.MeshStandardMaterial({color:0xe3263c,roughness:.55,emissive:0x330008}),darkM=new T.MeshStandardMaterial({color:0x3a0a22,roughness:.8}),podM=new T.MeshStandardMaterial({color:0x9fb88c,roughness:.6});
+const petM2=new T.MeshStandardMaterial({color:0xd01f6a,roughness:.55,emissive:0x2a0010});
+const stemG=new T.CylinderGeometry(.022,.036,1,6);stemG.translate(0,.5,0);
+const sphG=new T.SphereGeometry(1,16,12),ridgeG=new T.CylinderGeometry(.13,.16,1.8,8);ridgeG.rotateZ(Math.PI/2);
+function makePlant(){
+  const g=new T.Group(),stem=new T.Mesh(stemG,stemM);stem.castShadow=true;g.add(stem);
+  const leaves=[0,1].map(k=>{const l=new T.Mesh(sphG,leafM);l.scale.set(.2,.025,.075);l.position.x=(k?-1:1)*.12;l.rotation.z=(k?-1:1)*.35;l.castShadow=true;const p=new T.Group();p.add(l);p.rotation.y=k*2.2;g.add(p);return p});
+  const F=new T.Group(),pod=new T.Mesh(sphG,podM);pod.scale.setScalar(.085);pod.castShadow=true;F.add(pod);
+  const dot=new T.Mesh(sphG,darkM);dot.scale.set(.06,.03,.06);dot.position.y=.04;F.add(dot);
+  const pets=[],pm=Math.random()<.25?petM2:petM;for(let k=0;k<6;k++){const pv=new T.Group();pv.rotation.y=-k*Math.PI*2/6+rnd(-.1,.1);const p=new T.Mesh(sphG,pm);const w=k%2?.19:.16;p.scale.set(w,.03,.15);p.position.set(.125,.05+(k%2)*.012,0);p.rotation.z=.4+(k%2)*.12;pv.add(p);F.add(pv);pets.push(pv)}
+  F.rotation.x=.12;g.add(F);
+  return{g,stem,leaves,F,pod,pets,ph:rnd(0,6.3)};
+}
+const plots=[],soils=[];
+for(let i=0;i<N;i++){
+  const col=i%5,row=Math.floor(i/5),g=new T.Group();g.position.set((col-2)*2.3,0,(row-2)*2.3);
+  const soil=new T.Mesh(new T.BoxGeometry(2,.3,2),dryM);soil.position.y=.15;soil.receiveShadow=true;soil.castShadow=true;soil.userData.i=i;g.add(soil);soils.push(soil);
+  const ridges=[],plants=[];
+  for(let r=0;r<3;r++){const rg=new T.Mesh(ridgeG,ridgeM);rg.position.set(0,.3,(r-1)*.62);rg.receiveShadow=true;g.add(rg);ridges.push(rg);
+    for(let c=0;c<3;c++){const p=makePlant();p.g.position.set((c-1)*.65+rnd(-.1,.1),.33,(r-1)*.62+rnd(-.08,.08));p.g.visible=false;g.add(p.g);plants.push(p)}}
+  const ring=new T.Mesh(new T.RingGeometry(.88,1.02,48),new T.MeshBasicMaterial({color:0xf0bf55,transparent:true,blending:T.AdditiveBlending,depthWrite:false,side:T.DoubleSide}));
+  ring.rotation.x=-Math.PI/2;ring.position.y=.36;ring.visible=false;g.add(ring);
+  const tape=new T.Group(),tm=new T.MeshStandardMaterial({map:tapeT,roughness:.6}),cm=new T.MeshStandardMaterial({color:0xff7a1a,roughness:.6});
+  [[1.9,.12,.03,0,.62,.95],[1.9,.12,.03,0,.62,-.95],[.03,.12,1.9,.95,.62,0],[.03,.12,1.9,-.95,.62,0]].forEach(a=>{const m=new T.Mesh(new T.BoxGeometry(a[0],a[1],a[2]),tm);m.position.set(a[3],a[4],a[5]);m.castShadow=true;tape.add(m)});
+  [[.95,.95],[.95,-.95],[-.95,.95],[-.95,-.95]].forEach(a=>{const c=new T.Mesh(new T.ConeGeometry(.12,.45,10),cm);c.position.set(a[0],.53,a[1]);c.castShadow=true;tape.add(c)});
+  tape.visible=false;g.add(tape);
+  scene.add(g);plots.push({g,soil,ridges,plants,ring,tape,b:0,own:null});
+}
+/* تابلوی «زمین برای فروش» */
+const signC=document.createElement("canvas");signC.width=320;signC.height=160;
+const signT=new T.CanvasTexture(signC);signT.encoding=T.sRGBEncoding;
+const sign=new T.Sprite(new T.SpriteMaterial({map:signT,transparent:true}));sign.scale.set(2.6,1.3,1);scene.add(sign);
+let signKey="";
+function drawSign(){const g=signC.getContext("2d");g.clearRect(0,0,320,160);
+  g.fillStyle="#2b2016";g.strokeStyle="#f0bf55";g.lineWidth=6;g.beginPath();g.roundRect?g.roundRect(8,8,304,144,22):g.rect(8,8,304,144);g.fill();g.stroke();
+  g.fillStyle="#fff";g.textAlign="center";g.direction="rtl";g.font="bold 38px Tahoma,sans-serif";g.fillText("خرید زمین",160,64);
+  g.fillStyle="#f0bf55";g.font="bold 46px Tahoma,sans-serif";g.fillText(fmt(landCost())+" 💰",160,124);signT.needsUpdate=true}
+
+/* ---------- ماشین ---------- */
+const cart=new T.Group();
+const paint=new T.MeshStandardMaterial({color:0x2f6aa8,roughness:.35,metalness:.55}),dark=new T.MeshStandardMaterial({color:0x1c1c20,roughness:.7,metalness:.3}),glass=new T.MeshStandardMaterial({color:0x9fd0e8,roughness:.1,metalness:.8,transparent:true,opacity:.75}),chrome=new T.MeshStandardMaterial({color:0xcfd4da,roughness:.25,metalness:.9}),lampM=new T.MeshStandardMaterial({color:0xfff2b0,emissive:0xffe27a,emissiveIntensity:1.2}),tailM=new T.MeshStandardMaterial({color:0xff2a2a,emissive:0xff0000,emissiveIntensity:.8});
+function bx(w,h,d,m,x,y,z){const o=new T.Mesh(new T.BoxGeometry(w,h,d),m);o.position.set(x,y,z);o.castShadow=true;o.receiveShadow=true;cart.add(o);return o}
+bx(3.1,.3,1.3,dark,0,.55,0);bx(1.05,.5,1.36,paint,-1.0,.95,0);bx(1.0,.6,1.32,paint,-.2,1.3,0);bx(.85,.08,1.3,paint,-.15,1.64,0);
+[.67,-.67].forEach(z=>{bx(.7,.32,.02,glass,-.2,1.4,z);bx(.1,.12,.08,dark,-.7,1.3,z*1.08)});
+bx(.04,.4,1.1,glass,-.72,1.4,0).rotation.z=.35;bx(.04,.3,1,glass,.3,1.42,0);
+bx(1.3,.1,1.34,dark,.9,.78,0);[.65,-.65].forEach(z=>bx(1.3,.34,.06,paint,.9,.99,z));bx(.06,.34,1.3,paint,.27,.99,0);bx(.06,.34,1.3,paint,1.55,.99,0);
+bx(.14,.18,1.4,chrome,-1.58,.55,0);bx(.14,.18,1.4,chrome,1.62,.55,0);bx(.04,.22,.5,dark,-1.53,.92,0);
+[.52,-.52].forEach(z=>bx(.05,.14,.22,lampM,-1.54,.92,z));[.55,-.55].forEach(z=>bx(.05,.14,.2,tailM,1.58,.9,z));
+const wheels=[];
+[-1,1].forEach(x=>[.7,-.7].forEach(z=>{const g=new T.Group(),a=Math.PI/2;
+  const tire=new T.Mesh(new T.CylinderGeometry(.36,.36,.24,20),dark),hub=new T.Mesh(new T.CylinderGeometry(.19,.19,.26,12),chrome),sp=new T.Mesh(new T.BoxGeometry(.32,.07,.27),dark);
+  tire.rotation.x=a;hub.rotation.x=a;tire.castShadow=true;g.add(tire,hub,sp);g.position.set(x,.36,z);cart.add(g);wheels.push(g)}));
+const sackM=new T.MeshStandardMaterial({color:0xd8c8a0,roughness:1}),sacks=[];
+for(let i=0;i<5;i++){const s=new T.Mesh(sphG,sackM);s.scale.set(.24,.2,.22);s.position.set(.55+(i%3)*.38,.98+(i>2?.26:0),i>2?0:(i%2?.25:-.25));s.castShadow=true;s.visible=false;cart.add(s);sacks.push(s)}
+cart.position.set(7,0,7.6);scene.add(cart);
+const polPaint=new T.MeshStandardMaterial({color:0xf4f4f6,roughness:.35,metalness:.4});
+const pol=cart.clone(true);
+pol.traverse(o=>{if(o.isMesh){if(o.material===paint)o.material=polPaint;if(o.material===sackM)o.visible=false}});
+const lr=new T.MeshStandardMaterial({color:0xff2222,emissive:0xff0000,emissiveIntensity:1}),lb=new T.MeshStandardMaterial({color:0x2244ff,emissive:0x0033ff,emissiveIntensity:1});
+const l1=new T.Mesh(new T.BoxGeometry(.2,.1,.3),lr),l2=new T.Mesh(new T.BoxGeometry(.2,.1,.3),lb);l1.position.set(-.15,1.74,.3);l2.position.set(-.15,1.74,-.3);pol.add(l1,l2);
+[.67,-.67].forEach(z=>{const d=new T.Mesh(new T.BoxGeometry(.9,.14,.03),lb);d.position.set(-.2,1.15,z);pol.add(d)});
+pol.visible=false;pol.position.set(16,0,9.2);scene.add(pol);
+const dust=[];for(let i=0;i<24;i++){const d=new T.Sprite(new T.SpriteMaterial({map:cloudT,color:0xb59c76,transparent:true,opacity:0,depthWrite:false}));d.visible=false;d.userData.life=0;scene.add(d);dust.push(d)}
+let dn=0,dacc=0;
+
+/* ---------- دوربین ---------- */
+let az=0,azT=0,dist=18,shake=0;const TG=new T.Vector3(0,0,1.8);
+function resize(){const w=innerWidth,h=innerHeight;R.setPixelRatio(Math.min(devicePixelRatio||1,2));R.setSize(w,h,false);cam.aspect=w/h;
+  dist=Math.max(18,8.6/(Math.tan(22.5*Math.PI/180)*cam.aspect));cam.updateProjectionMatrix()}
+addEventListener("resize",resize);resize();
+let down=null,dragged=false;
+cv.addEventListener("pointerdown",e=>{down={x:e.clientX,az:azT};dragged=false;cv.setPointerCapture(e.pointerId)});
+cv.addEventListener("pointermove",e=>{if(down){const dx=e.clientX-down.x;if(Math.abs(dx)>7)dragged=true;if(dragged)azT=clamp(down.az-dx*.004,-.7,.7)}});
+cv.addEventListener("pointerup",e=>{if(down&&!dragged)pick(e.clientX,e.clientY);down=null});
+const ray=new T.Raycaster(),mv=new T.Vector2();
+function pick(x,y){mv.set(x/innerWidth*2-1,-(y/innerHeight)*2+1);ray.setFromCamera(mv,cam);const h=ray.intersectObjects(soils)[0];if(h)clickPlot(h.object.userData.i)}
+function proj(v){const p=v.clone().project(cam);return{x:clamp((p.x+1)/2*innerWidth,20,innerWidth-20),y:clamp((1-p.y)/2*innerHeight,40,innerHeight-40)}}
+const pt=i=>{const p=plots[i].g.position;return proj(new T.Vector3(p.x,1.3,p.z))};
+
+/* ---------- افکت‌های رابط ---------- */
+function ctr(t){if(t.x!==undefined)return t;const r=t.getBoundingClientRect();return{x:r.left+r.width/2,y:r.top+r.height/2}}
+function floatAt(t,text,cls){const c=ctr(t),s=document.createElement("span");s.className="fl "+(cls||"g");s.textContent=text;s.style.left=c.x+"px";s.style.top=c.y+"px";document.body.appendChild(s);setTimeout(()=>s.remove(),1000)}
+function coins(t,n,em){const c0=ctr(t);for(let i=0;i<n;i++){const c=document.createElement("span");c.className="coin";c.textContent=em||"💰";c.style.left=c0.x+"px";c.style.top=c0.y+"px";c.style.setProperty("--dx",rnd(-120,120)+"px");c.style.setProperty("--dy",rnd(-150,-30)+"px");c.style.animationDelay=rnd(0,.15)+"s";document.body.appendChild(c);setTimeout(()=>c.remove(),1200)}}
+function pop(i,d){setTimeout(()=>{plots[i].b=1},d||0)}
+let tt;function toast(t,bad){const e=$("toast");e.textContent=t;e.className="";void e.offsetWidth;e.className="show"+(bad?" bad":"");clearTimeout(tt)}
+function log(t){const d=document.createElement("div");d.textContent=t;$("log").prepend(d);while($("log").children.length>6)$("log").lastChild.remove()}
+function bad(){shake=1;const a=$("app"),f=$("flash");a.classList.remove("shake");f.classList.remove("on");void a.offsetWidth;a.classList.add("shake");f.classList.add("on")}
+
+/* ---------- منطق بازی ---------- */
+function full(t){floatAt(t,"انبار پر است","r");toast("📦 انبار پر شد! اول ببر بازار بفروش",1)}
+function clickPlot(i){
+  if(i>=S.owned){
+    if(i!==S.owned)return;
+    const cost=landCost();
+    if(S.money<cost){log("پول کافی نداری. این زمین "+fmt(cost)+" می‌خواهد.");floatAt(pt(i),"پول کم است","r");return}
+    S.money-=cost;S.owned++;render();pop(i);coins(pt(i),8,"✨");toast("🏞️ زمین جدید خریدی!");log("زمین جدید خریدی ("+fmt(cost)+").");return;
+  }
+  const t=S.plots[i];
+  if(!t){
+    if(isLocked(i)){floatAt(pt(i),"قرق پلیس 🚧","r");return}
+    if(S.money<SEED){floatAt(pt(i),"پول بذر نداری","r");return}
+    S.money-=SEED;S.plots[i]=Date.now();pop(i);floatAt(pt(i),"-"+SEED,"r");
+  }else if(Date.now()-t>=GROW){
+    if(S.stock+YIELD>cap()){full(pt(i));return}
+    S.plots[i]=0;S.stock+=YIELD;pop(i);floatAt(pt(i),"+"+YIELD+" 🌺","g");coins(pt(i),4,"🌺");
+  }else{S.plots[i]-=BOOST;pop(i);floatAt(pt(i),"⚡","g")}
+  render();
+}
+$("plantAll").onclick=()=>{let n=0;for(let i=0;i<S.owned;i++)if(!S.plots[i]&&S.money>=SEED&&!isLocked(i)){S.money-=SEED;S.plots[i]=Date.now();pop(i,n*60);n++}
+  log(n?n+" زمین کاشته شد.":S.lockUntil>Date.now()?"🚧 پلیس زمین‌ها را قرق کرده.":"زمین خالی نیست یا پول بذر نداری.");render()};
+$("harvestAll").onclick=()=>{let n=0;for(let i=0;i<S.owned;i++)if(S.plots[i]&&Date.now()-S.plots[i]>=GROW&&S.stock+YIELD<=cap()){S.plots[i]=0;S.stock+=YIELD;pop(i,n*60);const p=pt(i);setTimeout(()=>floatAt(p,"+"+YIELD,"g"),n*60);n++}
+  if(S.stock+YIELD>cap()&&S.plots.slice(0,S.owned).some(t=>t&&Date.now()-t>=GROW))full($("stock"));
+  if(n)coins($("stock"),Math.min(n*2,12),"🌺");
+  log(n?"از "+n+" زمین برداشت شد.":"چیزی آماده برداشت نیست.");render()};
+$("sell").onclick=()=>{
+  if(S.trip||S.stock<=0)return;
+  S.trip={qty:S.stock,start:Date.now()};S.stock=0;
+  log("ماشین با "+fmt(S.trip.qty)+" کیلو راهی بازار شد.");render();
+};
+function finishTrip(){
+  const q=S.trip.qty;S.trip=null;
+  const r=Math.random();let loss=0;
+  if(r<.12){loss=.4;toast("🚨 گشت جلویت را گرفت! ۴۰٪ بار رفت",1);log("گشت ۴۰٪ بار را گرفت.");bad()}
+  else if(r<.2){loss=.2;toast("🥷 دزدها ۲۰٪ بار را زدند",1);log("دزدها ۲۰٪ بار را زدند.");bad()}
+  const sold=Math.floor(q*(1-loss)),inc=Math.round(sold*S.price);
+  S.money+=inc;
+  const cp=proj(new T.Vector3(-7,1.5,7.6));
+  coins(cp,Math.min(14,4+Math.floor(inc/200)));floatAt(cp,"+"+fmt(inc),"g");
+  $("money").classList.remove("bump");void $("money").offsetWidth;$("money").classList.add("bump");
+  log("فروختی: "+fmt(sold)+" کیلو × "+fmt(S.price)+" = "+fmt(inc));
+}
+setInterval(()=>{
+  S.prev=S.price;
+  S.price=Math.max(20,Math.min(100,Math.round(S.price+(Math.random()-.48)*14)));
+  if(S.price!==S.prev){const p=$("price");p.classList.remove("flash");void p.offsetWidth;p.classList.add("flash")}
+},5000);
+
+/* ---------- ارتقای انبار ---------- */
+$("upg").onclick=()=>{
+  if(S.capLv>=MAXLV)return;const c=upCost();
+  if(S.money<c){floatAt($("upg"),"پول کم است","r");return}
+  S.money-=c;S.capLv++;render();coins($("upg"),6,"📦");toast("📦 انبار بزرگ‌تر شد: "+fmt(cap())+" کیلو");log("ظرفیت انبار شد "+fmt(cap())+" کیلو ("+fmt(c)+").");
+};
+
+/* ---------- پلیس و رشوه ---------- */
+let raid=null,nextRaid=Date.now()+rnd(40000,80000);
+function startRaid(now){raid={phase:"in",t:now,base:0,dl:0};pol.visible=true;pol.position.x=16;toast("🚨 صدای آژیر! پلیس نزدیک می‌شود",1);log("🚔 پلیس به سمت مزرعه می‌آید.")}
+function showAsk(){
+  raid.base=clamp(Math.round((60+S.money*.1)/10)*10,80,1500);raid.dl=Date.now()+12000;
+  $("raidTxt").textContent="افسر جلوی مزرعه ایستاده و انبارت را وارسی می‌کند. چه می‌کنی؟";
+  $("b1").textContent="💵 رشوه کم: "+fmt(raid.base);$("b1").disabled=S.money<raid.base;
+  $("b2").textContent="💰 رشوه زیاد: "+fmt(raid.base*2);$("b2").disabled=S.money<raid.base*2;
+  $("raid").hidden=false;
+}
+function lockdown(){
+  S.lockUntil=Date.now()+120000;S.freePlot=Math.floor(Math.random()*Math.max(1,S.owned));
+  toast("😠 پلیس رشوه را قبول نکرد! تا ۲ دقیقه فقط یک زمین (بدون نوار) را می‌توانی بکاری",1);log("🚧 قرق پلیس: ۲ دقیقه فقط یک زمین آزاد است.");bad();
+}
+function decide(k){
+  if(!raid||raid.phase!=="ask")return;
+  $("raid").hidden=true;
+  if(k==="none"){lockdown()}
+  else{
+    const cost=k==="low"?raid.base:raid.base*2,chance=k==="low"?.4:.8;
+    if(S.money<cost||Math.random()>=chance){lockdown()}
+    else{S.money-=cost;floatAt($("money"),"-"+fmt(cost),"r");toast("🤝 پلیس رشوه را گرفت و رفت");log("رشوه "+fmt(cost)+" را پذیرفت و بی‌سروصدا رفت.")}
+  }
+  raid.phase="out";raid.t=Date.now();render();
+}
+$("b1").onclick=()=>decide("low");$("b2").onclick=()=>decide("high");$("b3").onclick=()=>decide("none");
+function raidStep(now,t){
+  if(pol.visible){const on=Math.sin(t*14)>0;lr.emissiveIntensity=on?1.4:.1;lb.emissiveIntensity=on?.1:1.4}
+  if(!raid){
+    if(now>=nextRaid){const act=S.plots.some(Boolean)||S.stock>0||S.trip;if(S.lockUntil>now||!act)nextRaid=now+15000;else startRaid(now)}
+    return;
+  }
+  const e=now-raid.t;
+  if(raid.phase==="in"){const p=Math.min(1,e/2600);pol.position.x=16-14*(1-Math.pow(1-p,3));if(p>=1){raid.phase="ask";showAsk()}}
+  else if(raid.phase==="ask"){const left=Math.max(0,raid.dl-now);$("rbar").firstChild.style.width=left/120+"%";if(left<=0)decide("none")}
+  else{const p=Math.min(1,e/3000);pol.position.x=2-20*Math.pow(p,1.5);if(p>=1){pol.visible=false;raid=null;nextRaid=now+rnd(70000,140000)}}
+}
+
+/* ---------- نمایش ---------- */
+let wasLocked=false;
+function render(){
+  const now=Date.now();
+  $("upgc").textContent=S.capLv>=MAXLV?"حداکثر":fmt(upCost());$("upg").disabled=S.capLv>=MAXLV;
+  const lk=S.lockUntil>now;$("lock").hidden=!lk;
+  if(lk){const sc=Math.ceil((S.lockUntil-now)/1000),m=Math.floor(sc/60),ss=sc%60;$("lock").textContent="🚔 قرق پلیس: "+fmt(m)+":"+(ss<10?"۰":"")+fmt(ss)+" — فقط یک زمین بدون نوار قابل کاشت است"}
+  if(wasLocked&&!lk){toast("✅ قرق تمام شد؛ همه زمین‌ها آزادند");log("قرق پلیس تمام شد.")}
+  wasLocked=lk;
+  $("stock").lastChild.textContent=fmt(S.stock)+"/"+fmt(cap());$("stock").classList.toggle("full",S.stock+YIELD>cap());
+  const p=$("price");p.lastChild.textContent=fmt(S.price)+(S.price>S.prev?" ▲":S.price<S.prev?" ▼":"");
+  p.classList.toggle("up",S.price>S.prev);p.classList.toggle("down",S.price<S.prev);
+  $("land").lastChild.textContent=fmt(S.owned)+"/"+fmt(N);
+  const tr=S.trip;$("sell").disabled=!!tr||S.stock<=0;
+  if(tr){const f=Math.min(1,(now-tr.start)/TRIP);
+    $("tripText").textContent="در راه بازار: "+fmt(tr.qty)+" کیلو ("+fmt(Math.ceil((1-f)*TRIP/1000))+" ثانیه مانده)";$("pg").style.width=f*100+"%"}
+  else{$("pg").style.width="0";$("tripText").textContent=S.stock>0?"ماشین آماده است. "+fmt(S.stock)+" کیلو در انبار داری.":"ماشین آماده است. اول محصول برداشت کن."}
+  try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}
+}
+function updPlant(p,f,t,h0){
+  const h=.12+.88*Math.min(1,f/.8),H=1.15*h;
+  p.stem.scale.y=H;
+  const ls=clamp(f*2.5,0,1);
+  p.leaves.forEach((l,k)=>{l.visible=f>.12;l.position.y=H*(k?.62:.38);l.scale.setScalar(ls)});
+  p.F.position.y=H;
+  const bud=clamp((f-.3)/.4,0,1),bl=clamp((f-.78)/.22,0,1);
+  p.pod.visible=f>.3;p.pod.scale.setScalar(.03+.06*bud);
+  p.pets.forEach(v=>{v.visible=bl>0;v.scale.setScalar(Math.max(bl,.01))});
+  p.g.rotation.z=Math.sin(t*1.6+p.ph)*.05*(.3+h);p.g.rotation.x=Math.cos(t*1.2+p.ph)*.03*(.3+h);
+}
+const clock=new T.Clock();let disp=S.money,lastCart=7;
+function frame(){
+  const dt=Math.min(clock.getDelta(),.05),t=clock.elapsedTime,now=Date.now();
+  raidStep(now,t);
+  disp+=(S.money-disp)*.15;if(Math.abs(S.money-disp)<.5)disp=S.money;$("money").lastChild.textContent=fmt(disp);
+  if(S.trip){if(now-S.trip.start>=TRIP)finishTrip();render()}
+  az+=(azT-az)*.1;shake=Math.max(0,shake-dt*2);
+  const pol=.8;
+  cam.position.set(TG.x+dist*Math.sin(az)*Math.cos(pol)+rnd(-1,1)*shake*.3,TG.y+dist*Math.sin(pol)+rnd(-1,1)*shake*.2,TG.z+dist*Math.cos(az)*Math.cos(pol));
+  cam.lookAt(TG);
+  if(signKey!==""+landCost()||false){signKey=""+landCost();drawSign()}
+  plots.forEach((p,i)=>{
+    const own=i<S.owned;p.tape.visible=own&&isLocked(i);
+    if(p.own!==own){p.own=own;p.soil.material=own?soilM:dryM;p.ridges.forEach(r=>r.visible=own);p.soil.scale.y=own?1:.5;p.soil.position.y=own?.15:.075}
+    let f=0,planted=own&&S.plots[i];if(planted)f=Math.min(1,(now-S.plots[i])/GROW);
+    p.plants.forEach(pl=>{pl.g.visible=!!planted;if(planted)updPlant(pl,f,t)});
+    const ready=planted&&f>=1,nxt=i===S.owned;
+    p.ring.visible=ready||nxt;if(p.ring.visible){p.ring.material.opacity=.35+.35*Math.sin(t*4);p.ring.scale.setScalar(1+.04*Math.sin(t*4))}
+    if(p.b>0){p.b=Math.max(0,p.b-dt*2);const s=1+.18*Math.sin(p.b*Math.PI);p.g.scale.set(1,s,1)}
+    if(nxt){sign.position.set(p.g.position.x,2.1+Math.sin(t*2)*.08,p.g.position.z)}
+  });
+  sign.visible=S.owned<N;
+  const tr=S.trip,f=tr?Math.min(1,(now-tr.start)/TRIP):0,cx=tr?7-14*f:7;
+  const dx=cx-cart.position.x;cart.position.x=cx;cart.position.y=tr?Math.abs(Math.sin(t*10))*.04:0;
+  wheels.forEach(w=>w.rotation.z+=-dx/.36);
+  if(tr){dacc+=dt;if(dacc>.05){dacc=0;const d=dust[dn++%dust.length];d.userData.life=1;d.position.set(cart.position.x+1.9,.3,cart.position.z+rnd(-.5,.5));d.visible=true}}
+  dust.forEach(d=>{if(d.userData.life>0){d.userData.life-=dt*1.1;const l=d.userData.life;d.material.opacity=Math.max(0,l)*.5;d.scale.setScalar(1.2+(1-l)*2.4);d.position.y+=dt*.3;if(l<=0)d.visible=false}});
+  const ld=tr?tr.qty:S.stock,ns=ld>0?Math.min(5,Math.ceil(ld/14)):0;sacks.forEach((s,k)=>s.visible=k<ns);
+  clouds.forEach(c=>{c.position.x+=dt*.6;if(c.position.x>50)c.position.x=-50});
+  if(barnLv!==S.capLv){barnLv=S.capLv;barn.scale.setScalar(.85+.1*barnLv);barnCrates.forEach((c,k)=>c.visible=k<barnLv)}
+  R.render(scene,cam);requestAnimationFrame(frame);
+}
+if(!S.trip&&S.stock===0&&S.plots.every(x=>!x))log("سه قطعه زمین و ۱۵۰ پول داری. بذر بکار و تند تند روی زمین کلیک کن تا زودتر رشد کند. با کشیدن صفحه، دوربین می‌چرخد.");
+render();setInterval(render,500);frame();
+})();
+</script>
+</body>
+</html>
